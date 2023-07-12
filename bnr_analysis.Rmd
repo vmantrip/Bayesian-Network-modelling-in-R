@@ -1,0 +1,333 @@
+---
+title: "Homework_BNR"
+author: "Mantri Pragada Venkata Sesha Aditya"
+date: "2023-06-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Required packages
+
+```{r}
+library(deal)
+library(bnlearn)
+library(graph)
+library(Rgraphviz)
+library(gRbase)
+library(RBGL)
+```
+
+
+Q1) Consider the “ksl” data in the “deal” package. Eliminate survey year.
+
+a) Discretize the data – justify your choice of discretization.
+
+b) Ensure all the variables are “factors”. Fit a multinomial Bayesian Network. Describe your
+approach. Report the structure and the parameterization.
+
+c) Find the CPDAG for your network in B.
+
+d) Find an alternative DAG generated from the CPDAG that is a member of the equivalence
+same equivalence class as your DAG in b.
+
+e) According to your BN, are individuals that consume alcohol and smoke more likely to have
+higher forced ejection volumes? Justify your answer.
+
+f) According to your BN, are individuals that consume alcohol and have hypertension more
+likely to have low forced ejection volumes? Justify your answer.
+
+g) Discretize the data using an alternative technique (vs what was done in part A). Learn the
+
+BN using your approach in part B. How does it differ from the BN learned in Part B? Is
+the CPDAG different?
+
+
+```{r}
+library(bnlearn)
+library(deal)
+library(Rgraphviz)
+library(graph)
+
+# Load the "ksl" data
+data(ksl)
+ksl_discrete <- ksl[, -which(colnames(ksl)=='Year')]
+head(ksl_discrete)
+
+#a As per the given datset we are using equal width binning technique here
+ksl_discrete <- lapply(ksl_discrete, as.numeric)
+ksl_discrete <- lapply(ksl_discrete, function(x) cut(x, breaks=5,labels= FALSE))
+#b All variables are treated as factors
+ksl_discrete <- lapply(ksl_discrete, as.factor)
+
+
+ksl_df <- as.data.frame(ksl_discrete)
+bn <- empty.graph(names(ksl_df))
+bn <- hc(ksl_df)
+print(bn)
+bn_fit <- bn.fit(bn, as.data.frame(ksl_df))
+print(bn_fit)
+
+#c
+cpdag <- cpdag(bn)
+print(cpdag)
+
+
+#d
+bn <- hc(ksl_df)
+alt_nodes = names(bn)
+alt_dag <- random.graph(alt_nodes)
+print(alt_dag)
+
+
+# Reporting answers in question1
+
+#e
+#Higher FEV are less likely to ovvur for both lower and higher categories. Alcohol is more common ifn Females and Smoking is more common in males.
+
+#f
+
+#Individual with both high alcohol an hypertension are found to have less values of FEV. The network strucutre suggests a correlation between Low FEV, Alcohol and Hypertension.
+
+```
+
+# Q2) Consider the “marks” data in the “bnlearn” package.
+
+```{r}
+# Loading the "marks" data from "bnlearn" package
+data(marks)
+```
+
+# 2.a) Create a bn object describing the below graph
+
+```{r}
+# Creating an empty graph
+graph_marks <- empty.graph(nodes = c("ANL", "MECH", "LAT", "ALG", "STAT", "VECT"))
+
+# Adding edges to the graph
+graph_marks <- set.arc(graph_marks, from = "ANL", to = "LAT")
+graph_marks <- set.arc(graph_marks, from = "MECH", to = "LAT")
+graph_marks <- set.arc(graph_marks, from = "LAT", to = "ALG")
+graph_marks <- set.arc(graph_marks, from = "LAT", to = "STAT")
+graph_marks <- set.arc(graph_marks, from = "LAT", to = "VECT")
+
+# Printing the bn object
+graph_marks
+
+# Plotting the bn object
+plot(graph_marks)
+```
+
+# 2.b) Find the CPDAG
+
+```{r}
+# Finding the CPDAG
+cpdag_marks <- cpdag(graph_marks)
+
+# Printing the CPDAG
+cpdag_marks
+
+# Plotting the CPDAG
+plot(cpdag_marks)
+```
+
+# 2.c) Use hc to find the most likely structure. How does it differ from the above DAG?
+
+```{r}
+# Using hc to find the most likely structure
+hc_structure_marks <- hc(marks)
+
+# Printing the structure
+hc_structure_marks
+
+# Plotting the hc structure
+plot(hc_structure_marks)
+```
+
+```{r}
+# Comparing CPDAG and HC
+comparison_graphs <- all.equal(cpdag_marks, hc_structure_marks)
+par(mfrow = c(1, 2))  
+plot(cpdag_marks, main = "CPDAG")
+plot(hc_structure_marks, main = "HC")
+```
+
+#Differences between DAG_structure and HC_structure: </br>
+#The edge ANL -> LAT in DAG_structure is not present in HC_structure. </br>
+#The edge LAT -> ALG in DAG_structure is replaced by VECT -> ALG in HC_structure. </br>
+#The edge LAT -> STAT in DAG_structure is replaced by ALG -> STAT in HC_structure. </br>
+#The edge LAT -> VECT in DAG_structure is replaced by MECH -> VECT in HC_structure. </br>
+#Additional edges are present in HC_structure: MECH -> ANL and ANL -> STAT.
+
+#In conclusion, the starting DAG is different from the most likely structure that the Hill-Climbing algorithm learns. The Hill-Climbing method determines the edges that best describe the relationships in the data by optimizing the network topology based on a scoring measure (in this example, BIC). Based on the available data, the resultant structure in HC_structure depicts the dependencies and conditional independencies between the variables that are most likely to exist.
+
+
+# Q3) The “carcass” data from the package “gRbase” contains data on meat. Specifically, the data describes the thickness of meat and fat layers in different regions on the back of a pig together with the lean meat percentage on each of 344 carcasses. The data has been used for prediction of lean meat percentage based on carcass thickness. 
+
+```{r}
+# Loading the "carcas" data from "gRbase" package
+data(carcass)
+```
+
+# 3.a) Create a BN using score-based structural learning and ensure that “Lean Meat” is at the bottom of the network.
+
+```{r}
+carcass <- data.frame(lapply(carcass, as.numeric))
+bnscore <- gs(carcass)
+graphviz.plot(bnscore)
+```
+
+# 3.b) Create a BN using conditional independence tests for structural learning and ensure that “Lean Meat” is at the bottom of the network. 
+
+```{r}
+carcass <- data.frame(lapply(carcass, as.numeric))
+bnci <- hc(carcass, target = "LeanMeat", algorithm = "tabu")
+graphviz.plot(bnci)
+```
+
+# 3.c) How do the networks in A-B compare?
+
+#The networks observed in parts (a) and (b) have various structural compositions. The conditional independence tests for structural learning algorithm (part b) estimates conditional independence relationships, whereas the score-based structural learning algorithm (part a) employs a scoring function to discover the optimal structure. As we can see from the previously mentioned pictures, the resulting networks are completely unique, have various arc structures, and represent various assumptions on the conditional dependencies in the data. While figure 2 has a nested structure, figure 1 has a more linear structure.
+
+# 3.d) Simulate a dataset from your BN in part A with 25 samples, then learn the structure, how does the model compare with A?
+
+```{r}
+bnstructure <- empty.graph(nodes = colnames(carcass))
+bnfit <- bn.fit(bnstructure, data = carcass)
+simulateddata <- rbn(bnfit, n = 25)
+learnedbn <- hc(simulateddata)
+graphviz.plot(learnedbn)
+```
+
+#The generated model deviates from the original BN in terms of the arc structure when replicating a dataset from the BN obtained in part A with 25 samples and then learning the structure. The associations shown in the simulated data are represented by the learnt structure, which might not exactly match the original structure. The learnt structure may differ from the original BN obtained in part A because to factors like the randomness added throughout the simulation process and the small number of samples. As a result, the arc structure and conditional dependencies of the model that was learned from the simulated data differ from those of the original model.
+
+Q4) Blue baby syndrome (infant methemoglobinemia) occurs when there is not enough exygen
+in the blood. The aim of the following network that leverages both clinical expertise and historic
+data. The below DAG represents the incidence and presentation of six possible diseases that
+would lead to a blue baby syndrome.
+See broader description in: (Spiegelhalter, D. J., Dawid, A. P., Lauritzen, S. L., & Cowell, R. G.
+(1993). Bayesian analysis in expert systems. Statistical science, 219-247.)
+
+```{r}
+#4a
+library(bnlearn)
+
+# Define the structure of the Bayesian network
+dag <- empty.graph(nodes = c("BirthAsphyxia", "HypDistrib", "HypoxiaInO2", "CO2", "ChestXray", "Grunting", "LVHreport", "LowerBodyO2", "RUQO2", "CO2Report", "XrayReport", "Disease", "GruntingReport", "Age", "LVH", "DuctFlow", "CardiacMixing", "LungParench", "LungFlow", "Sick"))
+
+# Add the edges to the graph
+dag <- set.arc(dag, from = "BirthAsphyxia", to = "Disease")
+dag <- set.arc(dag, from = "Disease", to = "Age")
+dag <- set.arc(dag, from = "Disease", to = "LVH")
+dag <- set.arc(dag, from = "Disease", to = "DuctFlow")
+dag <- set.arc(dag, from = "Disease", to = "CardiacMixing")
+dag <- set.arc(dag, from = "Disease", to = "LungParench")
+dag <- set.arc(dag, from = "Disease", to = "LungFlow")
+dag <- set.arc(dag, from = "Disease", to = "Sick")
+dag <- set.arc(dag, from = "LVH", to = "LVHreport")
+dag <- set.arc(dag, from = "DuctFlow", to = "HypDistrib")
+dag <- set.arc(dag, from = "CardiacMixing", to = "HypDistrib")
+dag <- set.arc(dag, from = "CardiacMixing", to = "HypoxiaInO2")
+dag <- set.arc(dag, from = "LungParench", to = "HypoxiaInO2")
+dag <- set.arc(dag, from = "LungParench", to = "CO2")
+dag <- set.arc(dag, from = "LungParench", to = "ChestXray")
+dag <- set.arc(dag, from = "LungFlow", to = "ChestXray")
+dag <- set.arc(dag, from = "Sick", to = "Grunting")
+dag <- set.arc(dag, from = "Sick", to = "Age")
+dag <- set.arc(dag, from = "HypDistrib", to = "LowerBodyO2")
+dag <- set.arc(dag, from = "HypoxiaInO2", to = "LowerBodyO2")
+dag <- set.arc(dag, from = "HypoxiaInO2", to = "RUQO2")
+dag <- set.arc(dag, from = "CO2", to = "CO2Report")
+dag <- set.arc(dag, from = "ChestXray", to = "XrayReport")
+dag <- set.arc(dag, from = "Grunting", to = "GruntingReport")
+
+# Print the structure of the BN
+print(dag)
+
+# Convert the DAG to the compact factored form
+model <- model2network("[BirthAsphyxia][Disease|BirthAsphyxia][LVH|Disease][DuctFlow|Disease][CardiacMixing|Disease][LungParench|Disease][LungFlow|Disease][Sick|Disease][HypDistrib|DuctFlow:CardiacMixing][HypoxiaInO2|CardiacMixing:LungParench][CO2|LungParench][ChestXray|LungParench:LungFlow][Grunting|Sick][LVHreport|LVH][Age|Disease:Sick][LowerBodyO2|HypDistrib:HypoxiaInO2][RUQO2|HypoxiaInO2][CO2Report|CO2][XrayReport|ChestXray][GruntingReport|Grunting]")
+
+# Print the compact factored form
+modelstring <- as.character(model)
+print(modelstring)
+plot(dag)
+
+
+
+#4b
+plot(moral(dag))
+
+#4c
+child<- read.csv("child_network.csv", header=TRUE, colClasses="factor")
+head(child)
+
+#4d
+bn.mle <- bn.fit(dag, data = child, method = "mle")
+bn.mle
+bn.mle$ChestXray
+
+#4e
+bn.mle$Grunting
+
+#4f
+cpquery(bn.mle, event = (Disease == 'Fallot'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+cpquery(bn.mle, event = (Disease == 'Lung'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+cpquery(bn.mle, event = (Disease == 'PAIVS'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+cpquery(bn.mle, event = (Disease == 'PFC'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+cpquery(bn.mle, event = (Disease == 'TAPVD'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+cpquery(bn.mle, event = (Disease == 'TGA'), evidence = ((LowerBodyO2 == '<5' & XrayReport == 'Plethoric')))
+
+#4g
+cpquery(bn.mle, event = (Disease == 'Fallot'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'Lung'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'PAIVS'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'PFC'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no')))
+cpquery(bn.mle, event = (Disease == 'TAPVD'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'TGA'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting=='no')))
+
+#4g
+cpquery(bn.mle, event = (Disease == 'Fallot'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'Lung'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'PAIVS'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'PFC'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no')))
+cpquery(bn.mle, event = (Disease == 'TAPVD'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting == 'no'))) 
+cpquery(bn.mle, event = (Disease == 'TGA'), evidence = ((LowerBodyO2 == '<5') & (XrayReport == 'Oligaemic') & (Grunting=='no')))
+
+#4h
+#Julie
+cpquery(bn.mle, event = (Disease == 'Fallot'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+cpquery(bn.mle, event = (Disease == 'Lung'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+cpquery(bn.mle, event = (Disease == 'PAIVS'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+cpquery(bn.mle, event = (Disease == 'PFC'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+cpquery(bn.mle, event = (Disease == 'TAPVD'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+cpquery(bn.mle, event = (Disease == 'TGA'), evidence = ((Grunting == 'yes') & (CardiacMixing == 'Mild')))
+
+#George
+cpquery(bn.mle, event = (Disease == 'Fallot'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+cpquery(bn.mle, event = (Disease == 'Lung'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+cpquery(bn.mle, event = (Disease == 'PAIVS'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+cpquery(bn.mle, event = (Disease == 'PFC'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+cpquery(bn.mle, event = (Disease == 'TAPVD'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+cpquery(bn.mle, event = (Disease == 'TGA'), evidence = ((Grunting == 'no') & (CardiacMixing == 'Complete')))
+
+
+
+
+```
+
+For 4a-4e refer above plots and cpt tables. Explanations for 4f, 4g and 4h are given below.
+
+4f) As per the given conditions: we can infer that 'PAVIS' has the highest chance of occurring with 0.727797 probability.
+
+4g) As per the given conditions: we can infer that 'Fallot' has the highest chance of occurring with 0.4190231 probability.
+
+4h) George has a probability of 0.4455143 to catch the 'Fallot'disease. which is higher than the highest probability of Julia to catch 'Fallot' being 0.3423729. Hence as 41%>34%, George has more probability of catching the  'Fallot'
+disease due to “not grunting” with complete cardiac mixing”
+
+
+
+
+
+
